@@ -1,0 +1,31 @@
+# ignore folders Terraform downloads
+**/.terraform/*
+
+# ignore files that store what changes will be made
+*.tfstate
+*.tfstate.*
+
+# ignore logs if Terraform crashes
+crash.log
+crash.*.log
+
+# ignore files where you might store secrets
+*.tfvars
+*.tfvars.json
+
+# ignore override and plan files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfoverride
+*.tfplan
+
+# ignore Terraform settings on your computer
+.terraformrc
+terraform.rc
+
+# ignore private keys and certificates
+*.pem
+*.key
+*.pub
