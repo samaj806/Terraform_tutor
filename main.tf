@@ -2,11 +2,15 @@ provider "aws" {
   region = "us-east-1"
 }
 
-resource "aws_instance" "test_server" {
-  ami                    = "ami-020cba7c55df1f615"
-  key_name               = "logkey"
-  instance_type          = "t2.micro"
-  vpc_security_group_ids = [aws_security_group.internet.id]
+resource "aws_launch_template" "test_server" {
+  image_id      = "ami-020cba7c55df1f615"
+  key_name      = "logkey"
+  instance_type = "t2.micro"
+
+  network_interfaces {
+    security_groups             = [aws_security_group.internet.id]
+    associate_public_ip_address = true
+  }
 
   user_data = base64encode(<<-EOF
                 #!/bin/bash
@@ -19,7 +23,7 @@ resource "aws_instance" "test_server" {
                       EOF
   )
 
-  user_data_replace_on_change = true
+
 
   tags = {
     Name = "test-server"
@@ -46,4 +50,32 @@ variable "server_port" {
 output "public_ip" {
   value       = aws_instance.test_server.public_ip
   description = "The public IP address of the web server"
+}
+
+
+resource "aws_autoscaling_group" "server_increase" {
+  min_size            = 3
+  max_size            = 10
+  vpc_zone_identifier = data.aws_subnets.default.ids
+
+  launch_template {
+    id      = aws_launch_template.test_server.id
+    version = "$Latest"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+}
+
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
 }
