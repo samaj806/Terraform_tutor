@@ -12,18 +12,14 @@ resource "aws_launch_template" "test_server" {
     associate_public_ip_address = true
   }
 
-  user_data = base64encode(<<-EOF
-                #!/bin/bash
-                sudo apt-get update -y
-                sudo apt install -y busybox
-
-                      mkdir -p /var/www
-                      echo "Hello,World this is the first step we moving forward" > /var/www/index.html
-                      nohup busybox httpd -f -p ${var.server_port} -h /var/www &
-                      EOF
-  )
-
-
+ user_data = base64encode(templatefile("${path.module}/user_data.sh", {
+    DB_ADDRESS  = data.terraform_remote_state.db.outputs.address,
+    DB_PORT     = data.terraform_remote_state.db.outputs.port,
+    SERVER_PORT = var.server_port
+  }))
+  lifecycle {
+    create_before_destroy = true
+  }
 
   tags = {
     Name = "test-server"
@@ -40,18 +36,6 @@ resource "aws_security_group" "internet" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
-
-variable "server_port" {
-  description = "The port the srver will use for HTTP requests."
-  type        = number
-  default     = 8080
-}
-
-output "alb_dns_name" {
-  value       = aws_lb.load-balancer.dns_name
-  description = "The public IP address of the web server"
-}
-
 
 resource "aws_autoscaling_group" "server_increase" {
   min_size            = 3
@@ -163,3 +147,23 @@ resource "aws_lb_listener_rule" "asg" {
     target_group_arn = aws_lb_target_group.asg.arn
   }
 }
+
+# terraform {
+#   backend "s3" {
+#     bucket         = "ajsammy-bucket"
+#     key            = "stage/services/webserver-cluster/terraform.tfstate"
+#     region         = "us-east-1"
+#     dynamodb_table = "terraform_db-locks"
+#     encrypt        = true
+#   }
+# }
+
+# data "terraform_remote_state" "db" {
+#   backend = "s3"
+
+#   config = {
+#     bucket = "ajsammy-bucket"
+#     key    = "stage/data-stores/mysql/terraform.tfstate"
+#     region = "us-east-1"
+#   }
+# }
